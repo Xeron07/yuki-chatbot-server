@@ -1,0 +1,872 @@
+openapi: 3.0.3
+info:
+  title: Chatbot Server API
+  description: Customer support chatbot system with real-time messaging and order/product management
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3001
+    description: Development server
+
+tags:
+  - name: Products
+    description: Product search and retrieval operations
+  - name: Orders
+    description: Order management and tracking
+  - name: Tickets
+    description: Support ticket management
+  - name: Agents
+    description: Agent management and status
+  - name: System
+    description: System health and statistics
+
+paths:
+  # Product endpoints
+  /api/products/search:
+    post:
+      tags:
+        - Products
+      summary: Search products by query
+      description: Search for products using text search with relevance scoring
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - query
+              properties:
+                query:
+                  type: string
+                  description: Search query string
+                  example: "laptop"
+                limit:
+                  type: integer
+                  default: 20
+                  minimum: 1
+                  maximum: 100
+                  description: Maximum number of results to return
+      responses:
+        '200':
+          description: Products found successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  products:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Product'
+                  total:
+                    type: integer
+                    description: Number of products returned
+        '400':
+          description: Invalid request - missing query parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/products/{productId}:
+    get:
+      tags:
+        - Products
+      summary: Get product by ID or slug
+      description: Retrieve product details by product ID or slug
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          description: Product ID or slug
+          schema:
+            type: string
+          example: "laptop-gaming-asus"
+      responses:
+        '200':
+          description: Product found successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  product:
+                    $ref: '#/components/schemas/Product'
+        '404':
+          description: Product not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Order endpoints
+  /api/orders/phone/{phoneNumber}:
+    get:
+      tags:
+        - Orders
+      summary: Get orders by phone number
+      description: Retrieve customer orders by phone number with priority for processing orders
+      parameters:
+        - name: phoneNumber
+          in: path
+          required: true
+          description: Customer phone number
+          schema:
+            type: string
+          example: "+1234567890"
+      responses:
+        '200':
+          description: Orders found successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orders:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Order'
+                  total:
+                    type: integer
+                    description: Number of orders returned
+                  phoneNumber:
+                    type: string
+                    description: Phone number searched
+        '400':
+          description: Invalid request - phone number required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/orders/{orderNumber}:
+    get:
+      tags:
+        - Orders
+      summary: Get order by number
+      description: Retrieve order details by order number or ID
+      parameters:
+        - name: orderNumber
+          in: path
+          required: true
+          description: Order number or ID
+          schema:
+            type: string
+          example: "12345"
+      responses:
+        '200':
+          description: Order found successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  order:
+                    $ref: '#/components/schemas/Order'
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/orders/{orderNumber}/status:
+    get:
+      tags:
+        - Orders
+      summary: Get order status
+      description: Retrieve only the status of an order by order number
+      parameters:
+        - name: orderNumber
+          in: path
+          required: true
+          description: Order number
+          schema:
+            type: string
+          example: "12345"
+      responses:
+        '200':
+          description: Order status retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orderNumber:
+                    type: integer
+                    description: Order number
+                  status:
+                    type: string
+                    description: Current order status
+                    enum: [processing, shipped, delivered, cancelled]
+        '404':
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Ticket management endpoints
+  /api/tickets:
+    get:
+      tags:
+        - Tickets
+      summary: Get support tickets
+      description: Retrieve support tickets with optional filtering
+      parameters:
+        - name: status
+          in: query
+          description: Filter by ticket status
+          schema:
+            type: string
+            enum: [open, assigned, resolved, closed]
+        - name: agentId
+          in: query
+          description: Filter by assigned agent ID
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Maximum number of tickets to return
+          schema:
+            type: integer
+            default: 50
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Tickets retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tickets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TicketSummary'
+                  total:
+                    type: integer
+                    description: Number of tickets returned
+
+  /api/tickets/{ticketId}:
+    get:
+      tags:
+        - Tickets
+      summary: Get ticket details
+      description: Retrieve detailed information about a specific support ticket
+      parameters:
+        - name: ticketId
+          in: path
+          required: true
+          description: Ticket ID
+          schema:
+            type: string
+          example: "TICKET-1628097234567-1"
+      responses:
+        '200':
+          description: Ticket details retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ticket:
+                    $ref: '#/components/schemas/Ticket'
+        '404':
+          description: Ticket not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # Agent management endpoints
+  /api/agents:
+    get:
+      tags:
+        - Agents
+      summary: Get agent list
+      description: Retrieve list of all agents with their current status
+      responses:
+        '200':
+          description: Agents retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Agent'
+
+  # System endpoints
+  /api/stats:
+    get:
+      tags:
+        - System
+      summary: Get system statistics
+      description: Retrieve current system statistics including ticket counts and agent status
+      responses:
+        '200':
+          description: Statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStats'
+
+  /health:
+    get:
+      tags:
+        - System
+      summary: Health check
+      description: Check system health and get basic statistics
+      responses:
+        '200':
+          description: System is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: "OK"
+                  timestamp:
+                    type: string
+                    format: date-time
+                  totalTickets:
+                    type: integer
+                  openTickets:
+                    type: integer
+                  assignedTickets:
+                    type: integer
+                  closedTickets:
+                    type: integer
+                  activeAgents:
+                    type: integer
+                  totalAgents:
+                    type: integer
+                  activeCustomers:
+                    type: integer
+
+components:
+  schemas:
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique product identifier
+        name:
+          type: string
+          description: Product name
+        slug:
+          type: string
+          description: URL-friendly product slug
+        rating:
+          type: number
+          minimum: 0
+          maximum: 5
+          description: Product rating
+        manu_id:
+          type: string
+          description: Manufacturer ID
+        description:
+          type: string
+          description: Product description
+        discount:
+          type: number
+          description: Discount amount
+        discountType:
+          type: string
+          enum: ["%", "fixed"]
+          description: Type of discount
+        quantity:
+          type: integer
+          description: Available quantity
+        unitPrice:
+          type: number
+          description: Unit price
+        totalPrice:
+          type: number
+          description: Total price after discount
+        active:
+          type: boolean
+          description: Whether product is active
+        thumbnail:
+          type: string
+          description: Thumbnail image URL
+        images:
+          type: array
+          items:
+            type: string
+          description: Array of image URLs
+        categoryId:
+          type: string
+          description: Category identifier
+        productCode:
+          type: string
+          description: Product code
+        hasVariation:
+          type: boolean
+          description: Whether product has variations
+        sku:
+          type: string
+          description: Stock keeping unit
+        timestamps:
+          $ref: '#/components/schemas/Timestamps'
+        variation:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProductVariation'
+        review:
+          type: array
+          items:
+            type: object
+          description: Product reviews
+        ratingDetails:
+          type: array
+          items:
+            type: object
+            properties:
+              index:
+                type: integer
+                minimum: 1
+                maximum: 5
+              value:
+                type: number
+          description: Rating breakdown
+
+    ProductVariation:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Variation ID
+        size:
+          type: string
+          description: Size option
+        color:
+          type: string
+          description: Color option
+        sku:
+          type: string
+          description: Variation SKU
+        unitPrice:
+          type: number
+          description: Variation unit price
+        quantity:
+          type: integer
+          description: Variation quantity
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique order identifier
+        active:
+          type: boolean
+          description: Whether order is active
+        notes:
+          type: string
+          description: Order notes
+        orderCreatedBy:
+          type: string
+          description: Who created the order
+        orderNumber:
+          type: integer
+          description: Auto-incrementing order number
+        customer:
+          $ref: '#/components/schemas/Customer'
+        status:
+          type: string
+          enum: [processing, shipped, delivered, cancelled]
+          description: Order status
+        totalPrice:
+          type: number
+          description: Total order price
+        paid:
+          type: number
+          description: Amount paid
+        discount:
+          type: number
+          description: Discount applied
+        deliveryCharge:
+          type: number
+          description: Delivery charge
+        remaining:
+          type: number
+          description: Remaining amount to pay
+        timestamps:
+          $ref: '#/components/schemas/Timestamps'
+        payment:
+          type: array
+          items:
+            $ref: '#/components/schemas/Payment'
+        shipping:
+          $ref: '#/components/schemas/ShippingAddress'
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderProduct'
+
+    Customer:
+      type: object
+      required:
+        - name
+        - phoneNumber
+      properties:
+        name:
+          type: string
+          description: Customer name
+        email:
+          type: string
+          description: Customer email
+        phoneNumber:
+          type: string
+          description: Customer phone number
+
+    Payment:
+      type: object
+      properties:
+        paymentType:
+          type: string
+          description: Type of payment
+        paymentBy:
+          type: string
+          description: Payment method
+        amount:
+          type: number
+          description: Payment amount
+        date:
+          type: string
+          format: date-time
+          description: Payment date
+        transectionId:
+          type: string
+          description: Transaction ID
+
+    ShippingAddress:
+      type: object
+      properties:
+        division:
+          type: string
+          description: Division/State
+        district:
+          type: string
+          description: District/City
+        address:
+          type: string
+          description: Street address
+
+    OrderProduct:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Order item ID
+        productId:
+          type: string
+          description: Product ID
+        name:
+          type: string
+          description: Product name
+        thumbnail:
+          type: string
+          description: Product thumbnail
+        quantity:
+          type: integer
+          description: Ordered quantity
+        unitPrice:
+          type: number
+          description: Unit price
+        totalPrice:
+          type: number
+          description: Total price for this item
+        discount:
+          type: number
+          description: Discount applied
+        hasVariation:
+          type: boolean
+          description: Whether product has variations
+        title:
+          type: string
+          description: Product title
+        variantId:
+          type: string
+          description: Variant ID if applicable
+        variation:
+          type: object
+          properties:
+            id:
+              type: string
+            size:
+              type: string
+            color:
+              type: string
+
+    Ticket:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique ticket identifier
+        customerId:
+          type: string
+          description: Customer identifier
+        customerSocketId:
+          type: string
+          description: Customer socket ID
+        status:
+          type: string
+          enum: [open, assigned, resolved, closed]
+          description: Ticket status
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+          description: Ticket priority
+        assignedAgent:
+          type: string
+          nullable: true
+          description: ID of assigned agent
+        createdAt:
+          type: string
+          format: date-time
+          description: Ticket creation time
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update time
+        closedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Ticket closure time
+        closedBy:
+          type: string
+          nullable: true
+          description: Who closed the ticket
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+        customerInfo:
+          type: object
+          properties:
+            connectedAt:
+              type: string
+              format: date-time
+            lastSeen:
+              type: string
+              format: date-time
+
+    TicketSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Ticket ID
+        customerId:
+          type: string
+          description: Customer ID
+        status:
+          type: string
+          enum: [open, assigned, resolved, closed]
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        messageCount:
+          type: integer
+          description: Total number of messages
+        unreadCount:
+          type: integer
+          description: Number of unread messages
+        lastMessage:
+          type: object
+          nullable: true
+          properties:
+            content:
+              type: string
+              description: Last message content (truncated)
+            timestamp:
+              type: string
+              format: date-time
+            sender:
+              type: string
+              enum: [customer, agent, system]
+
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Message ID
+        content:
+          type: string
+          description: Message content
+        sender:
+          type: string
+          enum: [customer, agent, system]
+          description: Who sent the message
+        senderId:
+          type: string
+          nullable: true
+          description: ID of the sender
+        timestamp:
+          type: string
+          format: date-time
+          description: Message timestamp
+        read:
+          type: boolean
+          description: Whether message has been read
+
+    Agent:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Agent ID
+        name:
+          type: string
+          description: Agent name
+        department:
+          type: string
+          description: Agent department
+        status:
+          type: string
+          enum: [available, busy, away, offline]
+          description: Agent status
+        connectedAt:
+          type: string
+          format: date-time
+          description: When agent connected
+        lastActivity:
+          type: string
+          format: date-time
+          description: Last activity time
+        activeTickets:
+          type: integer
+          description: Number of active tickets
+
+    SystemStats:
+      type: object
+      properties:
+        totalTickets:
+          type: integer
+          description: Total number of tickets
+        openTickets:
+          type: integer
+          description: Number of open tickets
+        assignedTickets:
+          type: integer
+          description: Number of assigned tickets
+        closedTickets:
+          type: integer
+          description: Number of closed tickets
+        activeAgents:
+          type: integer
+          description: Number of available agents
+        totalAgents:
+          type: integer
+          description: Total number of agents
+        activeCustomers:
+          type: integer
+          description: Number of active customers
+
+    Timestamps:
+      type: object
+      properties:
+        createdAt:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updatedAt:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+      required:
+        - error
+
+  # WebSocket Events Documentation (for reference)
+  # Note: OpenAPI 3.0 doesn't support WebSocket documentation, but here are the events:
+  # 
+  # Customer Namespace (/customer):
+  # Events Received:
+  # - chat_response: { message, timestamp, messageId, sender, messageType }
+  # - typing: { isTyping }
+  # 
+  # Events Sent:
+  # - chat_message: { message }
+  # - typing: { isTyping }
+  # 
+  # Agent Namespace (/agent):
+  # Events Received:
+  # - auth_success: { agentId, agentName, department, tickets, stats }
+  # - auth_error: { message }
+  # - new_ticket: { ticket, message }
+  # - customer_message: { ticketId, message, customerInfo }
+  # - customer_typing: { ticketId, isTyping }
+  # - customer_disconnected: { ticketId, disconnectedAt }
+  # - message_sent: { ticketId, messageId, timestamp }
+  # - ticket_updated: { ticketId, status, updatedAt }
+  # - ticket_details: { ticket }
+  # - agent_status_change: { agentId, agentName, status }
+  # 
+  # Events Sent:
+  # - authenticate: { agentId, agentName, department }
+  # - send_message: { ticketId, message }
+  # - typing: { ticketId, isTyping }
+  # - update_ticket_status: { ticketId, status }
+  # - update_status: { status }
+  # - get_ticket_details: { ticketId }
